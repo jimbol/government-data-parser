@@ -1,0 +1,4 @@
+data
+*.pyc
+tmp
+.DS_Store
