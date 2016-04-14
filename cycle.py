@@ -4,32 +4,43 @@ import os
 import json
 import uuid
 
-# legislator -------- ORGANIZATIONS
-#     |                     |
-#    vote ------ bill --- ISSUES
+
+# legislator -------- organizations
+#   |  |  |                 |
+#   |  |  sponsor -         |
+#   |  |           |        |
+#   |  |           |        |
+#   |  -- vote -- bill --- issues
+#   |              |
+#   |              |
+# committee - committee activity
 
 
-# SAMPLE LOOK-UPS
-# Get all bills funded by inds
+# Legislator baselines
+# - Average vote (Y/N)
+# - The average vote for Passage votes will mostly be Yea
 
-
+# COMMITTEE { name, legislators, bills, other-goodies }
 
 class Cycle:
 
   lastVoteId = 0
+  lastCommitteeActivityId = 0
 
   votes = {}
   legislators = {}
   bills = {}
+  committees = {}
+  committeeActivities = {}
 
   def init(self):
-    self.legislators = self.buildLegislatorHash()
-    self.buildBillHash('hr', 113)
-    self.buildBillHash('s', 113)
+    self.legislators = self.buildLegislators()
+    self.buildBills('hr', 113)
+    self.buildBills('s', 113)
 
-# build store
+# build stores
 
-  def buildLegislatorHash(self):
+  def buildLegislators(self):
     output = {}
     legs = congress.all_legislators_in_office()
 
@@ -43,7 +54,10 @@ class Cycle:
 
     return output
 
-  def buildBillHash(self, path, congressNo):
+  def buildBills(self, path, congressNo):
+
+    # TODO, clean up this function DAMNIT!
+
     output = {}
     votes = {}
     path = 'data/bills/'+path+'/'
@@ -55,25 +69,70 @@ class Cycle:
 
     # Loop through all these folders
     for id in voteIds:
+
       bill = self.openJSON(path + id + '/data.json')
       billId = id + '-' + str(congressNo)
 
+      # save bill in store
+      self.bills[billId] = bill
       actions = bill['actions']
 
+
+      # move committees
+      committees = bill['committees']
+      bill['rawCommittees'] = committees
+      bill['committees'] = []
+
+      bill['committeeActivities'] = []
+
+      self.setUpCommittees(committees, bill)
+
+      # Create vote for each vote acion
       for action in actions:
         if action['type'] == 'vote':
+          if bill.get('votes') == None:
+            bill['votes'] = []
 
-          bill['votes'] = []
-
-          self.bills[billId] = bill
-
-          self.createVotes(billId)
-
-          break
+          self.buildVotesForBill(billId)
 
     return output
 
-  def createVotes(self, billId):
+  def setUpCommittees(self, committees, bill):
+    # Build committee obj and committee actions
+    # Add both to the bill
+    for committee in committees:
+      id = committee['committee_id']
+      outputCommittee = self.committees.get(id)
+
+      # create obj to stor committee if none exists
+      if outputCommittee == None:
+        outputCommittee = {
+          'name': committee['committee'],
+          'committeeActivities': [],
+          'bills': []
+        }
+
+        self.committees[id] = outputCommittee
+
+      for activity in committee['activity']:
+        committeeActivity = {
+          'activity': activity,
+          'bill': bill,
+          'committee': outputCommittee
+        }
+
+        # save activity on class
+        self.lastCommitteeActivityId += 1
+        self.committeeActivities[self.lastCommitteeActivityId] = committeeActivity
+
+        # and on committee
+        outputCommittee['committeeActivities'].append(committeeActivity)
+
+      outputCommittee['bills'].append(bill)
+      bill['committees'].append(outputCommittee)
+
+
+  def buildVotesForBill(self, billId):
     rawVotes = congress.votes(bill_id=billId,
       roll_type='On Passage',
       fields='voter_ids')
@@ -99,6 +158,9 @@ class Cycle:
 
         # Add it to the vote
         vote['legislator'] = legislator
+        vote['chamber'] = legislator['chamber']
+
+        legislator.keys()
 
         # Add vote to the legislator
         legislator['votes'].append(vote)
