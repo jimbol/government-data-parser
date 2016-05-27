@@ -2,6 +2,7 @@ from sunlight import congress
 from collections import defaultdict
 import os
 import json
+import csv
 import uuid
 
 
@@ -34,9 +35,10 @@ class Cycle:
   committeeActivities = {}
 
   def init(self):
-    self.legislators = self.buildLegislators()
-    self.buildBills('hr', 113)
-    self.buildBills('s', 113)
+    # self.legislators = self.buildLegislators()
+    # self.buildBills('hr', 113)
+    # self.buildBills('s', 113)
+    self.buildLobbying()
 
 # build stores
 
@@ -53,6 +55,46 @@ class Cycle:
       output[id]['votes'] = []
 
     return output
+
+  def buildLobbying(self):
+    with open('data/lobbying/lob_lobbying.txt', 'rb') as csvfile:
+      lobbyReader = csv.reader(csvfile, quotechar='|')
+      output = defaultdict(int)
+      for row in lobbyReader:
+        id = row[0]
+        registrant_raw = row[1]
+        registrant = row[2]
+        is_firm = row[3]
+        client_raw = row[4]
+        client = row[5]
+        ult_org = row[6]
+        amount = row[7]
+        catcode = row[8]
+        source = row[9]
+        self_filer = row[10]
+        include_nsfs = row[11]
+
+        if len(amount):
+          output[registrant] += float(amount)
+
+        # print l['self_filer']
+
+        # print isFirm
+
+        # print row[4]
+
+      o = []
+      for key in output:
+        o.append((key, output[key]))
+
+      a = sorted(o, key=lambda x: x[1])
+      print a[0]
+      print a[1]
+      print a[2]
+      print a[3]
+      print a[4]
+      # print sorted(output)
+      # print len(output)
 
   def buildBills(self, path, congressNo):
 
@@ -131,7 +173,6 @@ class Cycle:
       outputCommittee['bills'].append(bill)
       bill['committees'].append(outputCommittee)
 
-
   def buildVotesForBill(self, billId):
     rawVotes = congress.votes(bill_id=billId,
       roll_type='On Passage',
@@ -185,6 +226,6 @@ class Cycle:
     return data
 
 c = Cycle()
-# c.init()
+c.init()
 # cycle.createVotes('hr10-113')
 
