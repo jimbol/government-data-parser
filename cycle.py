@@ -35,9 +35,9 @@ class Cycle:
   committeeActivities = {}
 
   def init(self):
-    # self.legislators = self.buildLegislators()
-    # self.buildBills('hr', 113)
-    # self.buildBills('s', 113)
+    self.legislators = self.buildLegislators()
+    self.buildBills('hr', 113)
+    self.buildBills('s', 113)
     self.buildLobbying()
 
 # build stores
